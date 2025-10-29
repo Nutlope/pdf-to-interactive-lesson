@@ -96,9 +96,24 @@ function LandingScreen({
             if (event.type === "error") {
               throw new Error(event.error);
             } else if (event.type === "complete") {
-              setProgress("Course generated successfully!");
-              // Pass the generated course data to parent
-              onCourseGenerated(event.data.course);
+              // Check if course was stored in Blob or returned directly
+              if (event.data.courseUrl) {
+                // Large course stored in Blob, fetch it
+                setProgress("Downloading course data...");
+                const courseResponse = await fetch(event.data.courseUrl);
+                if (!courseResponse.ok) {
+                  throw new Error("Failed to fetch course from storage");
+                }
+                const courseData = await courseResponse.json();
+                setProgress("Course loaded successfully!");
+                onCourseGenerated(courseData);
+              } else if (event.data.course) {
+                // Small course returned directly
+                setProgress("Course generated successfully!");
+                onCourseGenerated(event.data.course);
+              } else {
+                throw new Error("No course data received");
+              }
               return;
             } else {
               // Update progress with the message

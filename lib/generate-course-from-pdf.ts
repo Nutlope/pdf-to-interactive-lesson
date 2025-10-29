@@ -1,7 +1,7 @@
 import { writeFile, unlink } from "fs/promises";
 import { existsSync } from "fs";
 import axios from "axios";
-// import { put } from "@vercel/blob"; // Only needed for Option 2 (background jobs)
+import { put } from "@vercel/blob";
 import { ocr } from "./ocr";
 import { createCourse } from "./create-course";
 import type { Course } from "@/app/hooks/use-course-navigation";
@@ -17,7 +17,8 @@ export interface GenerateCourseOptions {
 }
 
 export interface GenerateCourseResult {
-  course: Course;
+  course?: Course; // Optional if stored in Blob
+  courseUrl?: string; // Blob URL if course is too large
   metadata: {
     generationTime: string;
     ocrTime: string;
@@ -143,20 +144,52 @@ export async function generateCourseFromPdf(
       1000
     ).toFixed(2);
 
+    const metadata = {
+      generationTime: `${totalElapsed}s`,
+      ocrTime: `${ocrElapsed}s`,
+      courseTime: `${courseElapsed}s`,
+      modulesCount: course.modules.length,
+      lessonsCount: course.modules.reduce(
+        (sum, mod) => sum + mod.lessons.length,
+        0
+      ),
+      pages: result.pages.length,
+      tokens: result.inputTokens,
+    };
+
+    // Check if course JSON is too large for direct response
+    const courseJson = JSON.stringify(course);
+    const courseSizeInMB =
+      Buffer.byteLength(courseJson, "utf8") / (1024 * 1024);
+
+    // If course is larger than 2MB, store in Blob (Vercel limit is 4.5MB, leave buffer)
+    if (courseSizeInMB > 2) {
+      onProgress?.(
+        "storing",
+        `Course is large (${courseSizeInMB.toFixed(2)}MB), storing in cloud...`
+      );
+      console.log(
+        `📦 Course is ${courseSizeInMB.toFixed(2)}MB, storing in Blob`
+      );
+
+      const blob = await put(`courses/${Date.now()}-course.json`, courseJson, {
+        access: "public",
+        addRandomSuffix: true,
+        contentType: "application/json",
+      });
+
+      console.log(`✅ Course stored at: ${blob.url}`);
+
+      return {
+        courseUrl: blob.url,
+        metadata,
+      };
+    }
+
+    // Course is small enough, return directly
     return {
       course: course as Course,
-      metadata: {
-        generationTime: `${totalElapsed}s`,
-        ocrTime: `${ocrElapsed}s`,
-        courseTime: `${courseElapsed}s`,
-        modulesCount: course.modules.length,
-        lessonsCount: course.modules.reduce(
-          (sum, mod) => sum + mod.lessons.length,
-          0
-        ),
-        pages: result.pages.length,
-        tokens: result.inputTokens,
-      },
+      metadata,
     };
   } catch (error) {
     // Cleanup temp file on error
