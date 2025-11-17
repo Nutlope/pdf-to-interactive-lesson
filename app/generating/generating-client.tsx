@@ -38,7 +38,7 @@ export function GeneratingPageContent() {
       try {
         const file = await getPendingFile();
         if (file) {
-          hasStarted.current = true;
+      hasStarted.current = true;
           handleFileUpload(file);
           return;
         }
@@ -46,21 +46,21 @@ export function GeneratingPageContent() {
         console.error("Failed to retrieve pending file:", error);
         setError("Failed to retrieve file. Please try uploading again.");
         setIsProcessing(false);
-        return;
-      }
+      return;
+    }
 
-      // Fallback: Get file URL from query params if provided (for direct links)
-      const fileUrl = searchParams.get("url");
-      const fileName = searchParams.get("fileName");
+    // Fallback: Get file URL from query params if provided (for direct links)
+    const fileUrl = searchParams.get("url");
+    const fileName = searchParams.get("fileName");
 
-      if (fileUrl && fileName) {
-        hasStarted.current = true;
-        handleGenerateFromUrl(fileUrl, fileName);
-        return;
-      }
+    if (fileUrl && fileName) {
+      hasStarted.current = true;
+      handleGenerateFromUrl(fileUrl, fileName);
+      return;
+    }
 
-      // No file or URL provided, redirect back to courses
-      router.push("/courses");
+    // No file or URL provided, redirect back to courses
+    router.push("/courses");
     };
 
     initializeUpload();
@@ -235,7 +235,7 @@ export function GeneratingPageContent() {
       try {
         const file = await getPendingFile();
         if (file) {
-          handleFileUpload(file);
+        handleFileUpload(file);
         }
       } catch (error) {
         console.error("Failed to process pending file after API key save:", error);

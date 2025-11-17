@@ -3,13 +3,16 @@
 import { useState, useEffect, useRef } from "react";
 import { upload } from "@vercel/blob/client";
 import { getApiKey } from "@/lib/api-key-storage";
-import { getStoredCourses } from "@/lib/storage";
+import { getStoredCourses, saveCourse, updateCourseSlug } from "@/lib/storage";
 import { storePendingFile } from "@/lib/utils/indexed-db-storage";
+import { generateSlug, ensureUniqueSlug } from "@/lib/utils/slug";
 import { ApiKeyDialog } from "./api-key-dialog";
 import { Github, Twitter } from "lucide-react";
 import Link from "next/link";
 import { useImageFadeIn } from "../hooks/use-image-fade-in";
 import { Loader } from "@/components/ai-elements/loader";
+import { useRouter } from "next/navigation";
+import demoLesson from "@/lessons.json";
 
 interface LandingScreenProps {
   onCourseGenerated: (courseData: any) => void;
@@ -18,6 +21,7 @@ interface LandingScreenProps {
 function LandingScreen({
   onCourseGenerated,
 }: LandingScreenProps) {
+  const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,6 +131,34 @@ function LandingScreen({
         // Dialog was dismissed without saving - clear pending state
         setPendingFile(null);
         setError(null);
+      }
+    }
+  };
+
+  const handleTryDemo = () => {
+    // Load the demo lesson and navigate to it
+    const courseData = {
+      title: demoLesson.title,
+      modules: demoLesson.modules,
+    } as any; // Type assertion - lessons.json matches the Course structure
+
+    // Save to local storage
+    const courseId = saveCourse(courseData);
+    const courses = getStoredCourses();
+    const course = courses.find((c) => c.id === courseId);
+
+    if (course) {
+      // Generate and set slug
+      if (!course.slug) {
+        const baseSlug = generateSlug(course.course.title, course.id);
+        const existingSlugs = courses
+          .map((c) => c.slug)
+          .filter(Boolean) as string[];
+        const slug = ensureUniqueSlug(baseSlug, existingSlugs);
+        updateCourseSlug(courseId, slug);
+        router.push(`/course/${slug}`);
+      } else {
+        router.push(`/course/${course.slug}`);
       }
     }
   };
@@ -282,7 +314,7 @@ function LandingScreen({
           </p>
 
           {/* Upload Area */}
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-2xl mx-auto space-y-6">
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -358,6 +390,27 @@ function LandingScreen({
                 </>
               )}
             </div>
+
+            {/* Demo Button */}
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-neutral-200"></div>
+              <span className="text-sm text-neutral-500 font-medium">or</span>
+              <div className="flex-1 h-px bg-neutral-200"></div>
+            </div>
+
+            <button
+              onClick={handleTryDemo}
+              disabled={isProcessing}
+              className="w-full px-6 py-4 bg-white border-2 border-neutral-200 text-neutral-900 rounded-2xl font-medium hover:bg-neutral-50 hover:border-neutral-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Try Demo Course
+              </div>
+            </button>
           </div>
         </div>
       </main>
