@@ -14,6 +14,7 @@ import Link from "next/link";
 import { Github, Twitter, Key } from "lucide-react";
 import { Loader } from "@/components/ai-elements/loader";
 import { useImageFadeIn } from "../hooks/use-image-fade-in";
+import { getPendingFile, clearPendingFile, clearOldPendingFiles } from "@/lib/utils/indexed-db";
 
 export function GeneratingPageContent() {
   const router = useRouter();
@@ -32,44 +33,38 @@ export function GeneratingPageContent() {
   useEffect(() => {
     if (hasStarted.current) return;
 
-    // First check for file in sessionStorage (immediate redirect from upload)
-    const pendingFileData = sessionStorage.getItem("pendingPdfUpload");
-    if (pendingFileData) {
-      hasStarted.current = true;
-      sessionStorage.removeItem("pendingPdfUpload"); // Clear it immediately
-      
+    // Clean up old pending files on mount
+    clearOldPendingFiles();
+
+    const checkPendingFile = async () => {
+      // First check for file in IndexedDB (immediate redirect from upload)
       try {
-        const fileData = JSON.parse(pendingFileData);
-        // Convert base64 back to File
-        const byteCharacters = atob(fileData.data.split(",")[1]);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        const file = await getPendingFile();
+        if (file) {
+          hasStarted.current = true;
+          await clearPendingFile(); // Clear it immediately
+          handleFileUpload(file);
+          return;
         }
-        const byteArray = new Uint8Array(byteNumbers);
-        const file = new File([byteArray], fileData.name, { type: fileData.type });
-        
-        handleFileUpload(file);
       } catch (error) {
-        console.error("Failed to process pending file:", error);
-        setError("Failed to process file. Please try uploading again.");
-        setIsProcessing(false);
+        console.error("Failed to retrieve pending file:", error);
       }
-      return;
-    }
 
-    // Fallback: Get file URL from query params if provided (for direct links)
-    const fileUrl = searchParams.get("url");
-    const fileName = searchParams.get("fileName");
+      // Fallback: Get file URL from query params if provided (for direct links)
+      const fileUrl = searchParams.get("url");
+      const fileName = searchParams.get("fileName");
 
-    if (fileUrl && fileName) {
-      hasStarted.current = true;
-      handleGenerateFromUrl(fileUrl, fileName);
-      return;
-    }
+      if (fileUrl && fileName) {
+        hasStarted.current = true;
+        handleGenerateFromUrl(fileUrl, fileName);
+        return;
+      }
 
-    // No file or URL provided, redirect back to courses
-    router.push("/courses");
+      // No file or URL provided, redirect back to courses
+      router.push("/courses");
+    };
+
+    checkPendingFile();
   }, [searchParams, router]);
 
   const handleFileUpload = async (file: File) => {
@@ -235,20 +230,15 @@ export function GeneratingPageContent() {
     }
   };
 
-  const handleApiKeySaved = () => {
+  const handleApiKeySaved = async () => {
     // Check if there's a pending file to upload
-    const pendingFileData = sessionStorage.getItem("pendingPdfUpload");
-    if (pendingFileData && !hasStarted.current) {
+    if (!hasStarted.current) {
       try {
-        const fileData = JSON.parse(pendingFileData);
-        const byteCharacters = atob(fileData.data.split(",")[1]);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        const file = await getPendingFile();
+        if (file) {
+          await clearPendingFile();
+          handleFileUpload(file);
         }
-        const byteArray = new Uint8Array(byteNumbers);
-        const file = new File([byteArray], fileData.name, { type: fileData.type });
-        handleFileUpload(file);
       } catch (error) {
         console.error("Failed to process pending file after API key save:", error);
       }

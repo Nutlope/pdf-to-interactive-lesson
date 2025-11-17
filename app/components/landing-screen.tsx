@@ -9,6 +9,7 @@ import { Github, Twitter } from "lucide-react";
 import Link from "next/link";
 import { useImageFadeIn } from "../hooks/use-image-fade-in";
 import { Loader } from "@/components/ai-elements/loader";
+import { storePendingFile } from "@/lib/utils/indexed-db";
 
 interface LandingScreenProps {
   onCourseGenerated: (courseData: any) => void;
@@ -79,25 +80,16 @@ function LandingScreen({
       return;
     }
 
-    // Store file in sessionStorage and redirect immediately
-    // Convert file to base64 for storage
-    const reader = new FileReader();
-    reader.onload = () => {
-      const fileData = {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        data: reader.result as string, // base64 string
-      };
-      sessionStorage.setItem("pendingPdfUpload", JSON.stringify(fileData));
+    try {
+      // Store file in IndexedDB (avoids sessionStorage quota limits)
+      await storePendingFile(file);
       // Redirect immediately to generating page
       window.location.href = "/generating";
-    };
-    reader.onerror = () => {
-      setError("Failed to read file. Please try again.");
+    } catch (error) {
+      console.error("Failed to store file:", error);
+      setError("Failed to prepare file for upload. Please try again.");
       setIsProcessing(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleFileUpload = async (file: File) => {
