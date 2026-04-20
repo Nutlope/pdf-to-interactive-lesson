@@ -1,0 +1,58 @@
+{
+  "tag": "negation-m2.7",
+  "timestamp": "2026-04-20T13:51:29.096Z",
+  "model": "MiniMaxAI/MiniMax-M2.7",
+  "aggregate": {
+    "totalTimeMs": 7670990,
+    "totalLessons": 672,
+    "firstPassSuccess": 602,
+    "firstPassRate": 90,
+    "finalSuccess": 602,
+    "finalRate": 90,
+    "finalFailed": 70
+  },
+  "perFile": [
+    {
+      "file": "Rise-and-Fall-of-the-Roman-Empire",
+      "total": 100,
+      "success": 84,
+      "firstPass": 84,
+      "rate": 0.84
+    },
+    {
+      "file": "How we built our multi-agent research system _ Anthropic",
+      "total": 113,
+      "success": 103,
+      "firstPass": 103,
+      "rate": 0.91
+    },
+    {
+      "file": "Composer2",
+      "total": 107,
+      "success": 99,
+      "firstPass": 99,
+      "rate": 0.93
+    },
+    {
+      "file": "Claude Code Best Practices _ Anthropic",
+      "total": 118,
+      "success": 101,
+      "firstPass": 101,
+      "rate": 0.86
+    },
+    {
+      "file": "together-embeddings-blog",
+      "total": 116,
+      "success": 107,
+      "firstPass": 107,
+      "rate": 0.92
+    },
+    {
+      "file": "How does image compression work_ _ Lee Robinson",
+      "total": 118,
+      "success": 108,
+      "firstPass": 108,
+      "rate": 0.92
+    }
+  ]
+}

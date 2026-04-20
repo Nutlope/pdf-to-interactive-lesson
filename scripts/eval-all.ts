@@ -21,6 +21,7 @@
  *   --iterations=<n>      Number of iterations (default: 1)
  *   --batch=<n>           Run n iterations in parallel (default: 1 = sequential)
  *   --dimensions=<d,...>   Comma-separated: structural,correctness,grounding,duplicates,sufficiency (default: all)
+ *   --no-judge            Skip all LLM judging (saves results for manual review later)
  */
 
 import { createCourse } from "../lib/create-course";
@@ -61,6 +62,7 @@ const batch = parseInt(
   args.find((a) => a.startsWith("--batch="))?.split("=")[1] ?? "1",
   10
 );
+const noJudge = args.includes("--no-judge");
 const inputFiles = args
   .filter((a) => !a.startsWith("--"))
   .map((f) => resolve(f));
@@ -699,9 +701,10 @@ async function processFile(filePath: string): Promise<FileEvalResult> {
 
   // 3. Judge all questions (correctness + grounding + sufficiency in parallel per question)
   const runJudge =
-    enabledDimensions.has("correctness") ||
+    !noJudge &&
+    (enabledDimensions.has("correctness") ||
     enabledDimensions.has("grounding") ||
-    enabledDimensions.has("sufficiency");
+    enabledDimensions.has("sufficiency"));
   let judgingTimeMs = 0;
 
   const defaultCorrectness: CorrectnessVerdict = {

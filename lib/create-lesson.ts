@@ -333,6 +333,25 @@ ${standardLessonPrompt}`;
     }
   }
 
+  // Reject multiple-choice questions that use negation (e.g. "Which is NOT...")
+  const negationPattern = /\bNOT\b|\bEXCEPT\b/;
+  for (let i = 0; i < lessons.length; i++) {
+    if (failuresByIndex.has(i)) continue;
+    const lesson = lessons[i];
+    if (lesson.questionType === "multiple-choice" && negationPattern.test(lesson.question)) {
+      console.error(`  ❌ Multiple-choice uses negation, rejecting: "${lesson.question.substring(0, 80)}..."`);
+      failuresByIndex.set(i, {
+        success: false,
+        data: lesson,
+        error: {
+          validationType: "content",
+          reason: "Multiple-choice questions must not use negation (NOT, EXCEPT). Ask for the correct/supported option instead.",
+          details: [`Question "${lesson.question}" uses negation wording.`],
+        },
+      });
+    }
+  }
+
   // Run LLM-based content validation if requested (concurrently)
   if (validateContent) {
     const validationPromises = lessons.map(async (lesson: any, i: number) => {
@@ -441,6 +460,11 @@ ${failed.data.questionType === "multiple-choice" ? '{"title":"...","content":"..
             const fixed = ensureInfo({ ...revalidated.data });
             if (fixed.questionType === "multiple-choice" && Array.isArray(fixed.choices) && fixed.choices.length === 4) {
               shuffleMultipleChoice(fixed);
+            }
+            // Re-check deterministic rules on retried lesson
+            if (fixed.questionType === "multiple-choice" && negationPattern.test(fixed.question)) {
+              console.error(`  ❌ Retried lesson still uses negation, keeping failure: "${fixed.question.substring(0, 80)}..."`);
+              return; // keep original failure
             }
             lessons[index] = fixed;
             failuresByIndex.delete(index);

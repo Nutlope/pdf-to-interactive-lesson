@@ -1,0 +1,58 @@
+{
+  "tag": "negation-glm5.1",
+  "timestamp": "2026-04-20T11:43:37.822Z",
+  "model": "zai-org/GLM-5.1",
+  "aggregate": {
+    "totalTimeMs": 1429116,
+    "totalLessons": 713,
+    "firstPassSuccess": 603,
+    "firstPassRate": 85,
+    "finalSuccess": 603,
+    "finalRate": 85,
+    "finalFailed": 110
+  },
+  "perFile": [
+    {
+      "file": "Rise-and-Fall-of-the-Roman-Empire",
+      "total": 120,
+      "success": 96,
+      "firstPass": 96,
+      "rate": 0.8
+    },
+    {
+      "file": "How we built our multi-agent research system _ Anthropic",
+      "total": 115,
+      "success": 94,
+      "firstPass": 94,
+      "rate": 0.82
+    },
+    {
+      "file": "Composer2",
+      "total": 120,
+      "success": 106,
+      "firstPass": 106,
+      "rate": 0.88
+    },
+    {
+      "file": "Claude Code Best Practices _ Anthropic",
+      "total": 120,
+      "success": 103,
+      "firstPass": 103,
+      "rate": 0.86
+    },
+    {
+      "file": "together-embeddings-blog",
+      "total": 120,
+      "success": 101,
+      "firstPass": 101,
+      "rate": 0.84
+    },
+    {
+      "file": "How does image compression work_ _ Lee Robinson",
+      "total": 118,
+      "success": 103,
+      "firstPass": 103,
+      "rate": 0.87
+    }
+  ]
+}
