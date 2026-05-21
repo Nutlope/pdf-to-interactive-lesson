@@ -1,138 +1,55 @@
-import { NextRequest } from "next/server";
-import { generateCourseFromPdf } from "../../../lib/generate-course-from-pdf";
+import { NextRequest, NextResponse } from "next/server";
 import {
   checkRateLimit,
-  incrementRateLimit,
-  getRateLimitStatus,
   getClientIdentifier,
 } from "@/lib/utils/rate-limiter";
-import { acquireSlot } from "@/lib/utils/generation-semaphore";
+import { createJob } from "@/lib/utils/job-store";
+import { enqueueGenerationJob } from "@/lib/utils/qstash";
 
-// Force Node.js runtime (not Edge) for native modules like sharp
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Increase timeout to 5 minutes (300 seconds) - max for Vercel Pro plan
-export const maxDuration = 800;
 
-// Helper to create a streaming response with progress updates
-function createStreamResponse() {
-  const encoder = new TextEncoder();
-  let controller: ReadableStreamDefaultController;
-
-  const stream = new ReadableStream({
-    start(ctrl) {
-      controller = ctrl;
-    },
-  });
-
-  const sendProgress = (type: string, message: string, data?: Record<string, unknown>) => {
-    const progressEvent = {
-      type,
-      message,
-      timestamp: new Date().toISOString(),
-      ...data,
-    };
-    controller.enqueue(encoder.encode(JSON.stringify(progressEvent) + "\n"));
-  };
-
-  const sendComplete = (data: Record<string, unknown>) => {
-    controller.enqueue(
-      encoder.encode(JSON.stringify({ type: "complete", data }) + "\n")
-    );
-    controller.close();
-  };
-
-  const sendError = (error: string) => {
-    controller.enqueue(
-      encoder.encode(JSON.stringify({ type: "error", error }) + "\n")
-    );
-    controller.close();
-  };
-
-  return { stream, sendProgress, sendComplete, sendError };
-}
-
-// POST /api/generate-course
 export async function POST(request: NextRequest) {
-  const { stream, sendProgress, sendComplete, sendError } =
-    createStreamResponse();
+  try {
+    const apiKey = request.headers.get("X-Together-API-Key");
+    const clientId = getClientIdentifier(request);
 
-  const clientId = getClientIdentifier(request);
-
-  // Start processing in the background
-  (async () => {
-    try {
-      // Get API key from headers (optional - user can provide their own for unlimited)
-      const apiKey = request.headers.get("X-Together-API-Key");
-      
-      // Check rate limit (bypassed if user has API key)
-      const rateLimitCheck = await checkRateLimit(clientId, !!apiKey);
-      
-      if (!rateLimitCheck.allowed && !apiKey) {
-        sendError(
-          "You've used all 3 free courses. Please add your Together AI API key to generate unlimited courses."
-        );
-        return;
-      }
-
-      const formData = await request.formData();
-      const file = formData.get("file") as File | null;
-      const url = formData.get("url") as string | null;
-
-      const slot = await acquireSlot((position) => {
-        sendProgress(
-          "queued",
-          position === 1
-            ? "Starting shortly..."
-            : `Waiting in line (position ${position})`,
-          { position }
-        );
-      });
-
-      if (slot.waitMs > 0) {
-        sendProgress("queue-acquired", "Starting generation...", {
-          waitMs: slot.waitMs,
-        });
-      }
-
-      try {
-        // Generate course with progress updates
-        const result = await generateCourseFromPdf({
-          file: file || undefined,
-          url: url || undefined,
-          apiKey: apiKey || "",
-          onProgress: sendProgress,
-        });
-
-        // Increment rate limit only if user didn't provide their own API key
-        if (!apiKey) {
-          await incrementRateLimit(clientId);
-        }
-
-        // Get full status for the client
-        const status = await getRateLimitStatus(clientId);
-
-        // Send final result with credit info
-        sendComplete({
-          ...result,
-          coursesCreated: status.coursesCreated,
-          gradingsUsed: status.gradingsUsed,
-        });
-      } finally {
-        slot.release();
-      }
-    } catch (error) {
-      console.error("❌ Error generating course:", error);
-      sendError(error instanceof Error ? error.message : "Unknown error");
+    const rateLimitCheck = await checkRateLimit(clientId, !!apiKey);
+    if (!rateLimitCheck.allowed && !apiKey) {
+      return NextResponse.json(
+        {
+          error:
+            "You've used all 3 free courses. Please add your Together AI API key to generate unlimited courses.",
+        },
+        { status: 402 }
+      );
     }
-  })();
 
-  // Return the streaming response
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
+    const formData = await request.formData();
+    const url = formData.get("url") as string | null;
+    if (!url) {
+      return NextResponse.json(
+        { error: "Missing PDF url" },
+        { status: 400 }
+      );
+    }
+
+    const jobId = crypto.randomUUID();
+    await createJob(jobId, {
+      url,
+      apiKey: apiKey || undefined,
+      clientId,
+    });
+    await enqueueGenerationJob(jobId);
+
+    return NextResponse.json({ jobId });
+  } catch (error) {
+    console.error("Error enqueuing course generation:", error);
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Failed to enqueue job",
+      },
+      { status: 500 }
+    );
+  }
 }

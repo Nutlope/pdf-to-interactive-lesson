@@ -113,101 +113,83 @@ export function GeneratingPageContent() {
     setError(null);
     setIsQueued(false);
     setProgress("Generating course from PDF...");
-    
+
     // Store the upload info for retry
     setLastUpload({ url, fileName });
 
     try {
       const apiKey = getApiKey();
-      
+
       const formData = new FormData();
       formData.append("url", url);
 
-      // Prepare headers - only include API key if user has provided one
       const headers: Record<string, string> = {};
       if (apiKey) {
         headers["X-Together-API-Key"] = apiKey;
       }
 
-      const response = await fetch("/api/generate-course", {
+      const enqueueResponse = await fetch("/api/generate-course", {
         method: "POST",
         headers,
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 402) {
-          throw new Error(
-            errorData.message || `Insufficient credits.`
-          );
+      if (!enqueueResponse.ok) {
+        const errorData = await enqueueResponse.json();
+        if (enqueueResponse.status === 402) {
+          throw new Error(errorData.message || `Insufficient credits.`);
         }
         throw new Error(errorData.error || "Failed to generate course");
       }
 
-      // Read the streaming response
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error("No response body");
+      const { jobId } = (await enqueueResponse.json()) as { jobId: string };
+      if (!jobId) {
+        throw new Error("No jobId returned from server");
       }
 
-      let buffer = "";
+      const POLL_INTERVAL_MS = 1500;
+      const MAX_POLL_MS = 20 * 60 * 1000;
+      const startedAt = Date.now();
+
       let courseData: Course | null = null;
       let courseMetadata: Record<string, unknown> | null = null;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      while (Date.now() - startedAt < MAX_POLL_MS) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        const statusResponse = await fetch(
+          `/api/generate-course/status?jobId=${encodeURIComponent(jobId)}`,
+          { cache: "no-store" }
+        );
 
-        for (const line of lines) {
-          if (!line.trim()) continue;
-
-          let event;
-          try {
-            event = JSON.parse(line);
-          } catch (parseError) {
-            // Skip invalid JSON lines
-            console.warn("Failed to parse SSE line:", line);
-            continue;
+        if (!statusResponse.ok) {
+          if (statusResponse.status === 404) {
+            throw new Error("Job expired before completing. Please try again.");
           }
-
-          // Handle parsed event
-          if (event.type === "error") {
-            throw new Error(event.error || "Unknown error occurred during course generation");
-          } else if (event.type === "complete") {
-            courseData = event.data.course;
-            courseMetadata = event.data.metadata || null;
-            break;
-          } else if (event.type === "queued") {
-            setIsQueued(true);
-            if (typeof event.position === "number") {
-              setProgress(
-                event.position <= 1
-                  ? "Starting shortly..."
-                  : `Waiting in line (position ${event.position})`
-              );
-            } else if (event.message) {
-              setProgress(event.message);
-            }
-          } else if (event.type === "queue-acquired") {
-            setIsQueued(false);
-            setProgress(event.message || "Starting generation...");
-          } else if (event.message) {
-            setIsQueued(false);
-            setProgress(event.message);
-          }
+          continue;
         }
-        if (courseData) break;
+
+        const state = await statusResponse.json();
+
+        if (state.status === "queued") {
+          setIsQueued(true);
+          setProgress("Waiting in line...");
+        } else if (state.status === "processing") {
+          setIsQueued(false);
+          if (state.progress) {
+            setProgress(state.progress);
+          }
+        } else if (state.status === "complete") {
+          courseData = state.course;
+          courseMetadata = state.metadata || null;
+          break;
+        } else if (state.status === "error") {
+          throw new Error(state.error || "Unknown error occurred during course generation");
+        }
       }
 
       if (!courseData) {
-        throw new Error("Failed to generate course");
+        throw new Error("Course generation timed out. Please try again.");
       }
 
       // Attach generation metadata to course object (for debug panel)
