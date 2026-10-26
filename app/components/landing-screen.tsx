@@ -230,7 +230,7 @@ function LandingScreen() {
 
           <div className="relative z-10 text-center max-w-3xl mx-auto">
             <a
-              href="https://together.ai"
+              href="https://togetherai.link/?utm_source=pdf-to-interactive-lesson&utm_medium=referral&utm_campaign=example-app"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Made & powered by Together AI"

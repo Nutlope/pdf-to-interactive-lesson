@@ -127,7 +127,7 @@ const ApiKeyForm = ({
           <span>
             Visit{" "}
             <a
-              href="https://together.ai"
+              href="https://togetherai.link/?utm_source=pdf-to-interactive-lesson&utm_medium=referral&utm_campaign=example-app"
               target="_blank"
               rel="noopener noreferrer"
               className="underline hover:text-neutral-900"
@@ -154,7 +154,7 @@ const ApiKeyForm = ({
         </Button>
         <div className="flex items-center justify-between text-sm pt-2 gap-6">
           <a
-            href="https://together.ai"
+            href="https://togetherai.link/?utm_source=pdf-to-interactive-lesson&utm_medium=referral&utm_campaign=example-app"
             target="_blank"
             rel="noopener noreferrer"
             className="text-neutral-600 hover:text-neutral-900 underline flex items-center gap-1"

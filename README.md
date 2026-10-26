@@ -1,6 +1,6 @@
 # [PDF to Lesson](https://pdf-to-interactive-lesson.vercel.app).
 
-Upload a PDF and instantly generate a small interactive course with modules, lessons, quizzes, and flow-ordering questions. Powered by [Together AI](https://together.ai).
+Upload a PDF and instantly generate a small interactive course with modules, lessons, quizzes, and flow-ordering questions. Powered by [Together AI](https://togetherai.link/?utm_source=pdf-to-interactive-lesson&utm_medium=referral&utm_campaign=example-app).
 
 [![PDF to Interactive Lesson Generator](./public/og-image.png)](https://pdf-to-interactive-lesson.vercel.app)
 
@@ -17,7 +17,7 @@ PDF to Interactive Lesson Generator extracts text from your uploaded PDF, sends 
 ## Tech stack
 
 - **Framework**: [Next.js](https://nextjs.org/) App Router
-- **AI**: [Together AI](https://together.ai) — course planning, lesson generation, quiz generation, and flow-question generation (GPT OSS 120B)
+- **AI**: [Together AI](https://togetherai.link/?utm_source=pdf-to-interactive-lesson&utm_medium=referral&utm_campaign=example-app) — course planning, lesson generation, quiz generation, and flow-question generation (GPT OSS 120B)
 - **PDF extraction**: [MuPDF](https://mupdf.com/)
 - **Database**: [Neon Postgres](https://neon.tech) with [Drizzle ORM](https://orm.drizzle.team/)
 - **Storage**: [Vercel Blob](https://vercel.com/docs/storage/vercel-blob)

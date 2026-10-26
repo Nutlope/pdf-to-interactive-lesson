@@ -6,7 +6,7 @@ function Footer() {
     <div className="w-full py-6">
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
         <a
-          href="https://together.ai"
+          href="https://togetherai.link/?utm_source=pdf-to-interactive-lesson&utm_medium=referral&utm_campaign=example-app"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Powered by together.ai"
